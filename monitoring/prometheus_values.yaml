@@ -1,0 +1,54 @@
+grafana:
+  enabled: true
+  defaultDashboardsEnabled: true
+
+prometheus:
+  enabled: true
+
+  additionalServiceMonitors: 
+  - name: "nextlinux-service-monitor"
+    selector: 
+      matchLabels:
+        app: nextlinux-nextlinux-engine
+    namespaceSelector:
+      matchNames: 
+        - nextlinux
+    endpoints: 
+      - port: "nextlinux-external-api"
+        interval: 30s
+        path: /metrics
+        scheme: http
+      - port: "nextlinux-rbac-manager"
+        interval: 30s
+        path: /metrics
+        scheme: http
+      - port: "nextlinux-catalog-api"
+        interval: 30s
+        path: /metrics
+        scheme: http
+      - port: "nextlinux-policy-api"
+        interval: 30s
+        path: /metrics
+        scheme: http
+      - port: "nextlinux-simplequeue-api"
+        interval: 30s
+        path: /metrics
+        scheme: http
+      - port: "feeds-api"
+        interval: 30s
+        path: /metrics
+        scheme: http
+      
+  additionalPodMonitors: 
+  - name: "nextlinux-pod-monitor"
+    selector:
+      matchLabels:
+        app: nextlinux-nextlinux-engine
+    namespaceSelector:
+      matchNames: 
+        - nextlinux
+    podMetricsEndpoints: 
+      - port: "analyzer-api"
+        interval: 30s
+        path: /metrics
+        scheme: http

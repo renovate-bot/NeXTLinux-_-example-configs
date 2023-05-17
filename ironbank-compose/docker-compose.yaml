@@ -1,0 +1,490 @@
+# All-in-one docker-compose deployment of a full nextlinux-enterprise service system
+---
+version: '2.1'
+volumes:
+  # Since this is for a quickstart, each minor version has its own db, to use a previous db and upgrade, change this to the db volume name you want to upgrade. e.g. "nextlinux-enterprise-4.0.2-db" if upgrading from a 4.0.2 quickstart deployment.
+  nextlinux-enterprise-4.0.2-db:
+
+    # Set this to 'true' to use an external volume. In which case, it must be created manually with "docker volume create nextlinux-db-volume"
+    external: false
+  feeds-workspace-volume:
+    # Set this to 'true' to use an external volume. In which case, it must be created manually with "docker volume create feeds-workspace-volume"
+    external: false
+  enterprise-feeds-db-volume:
+    # Set this to 'true' to use an external volume. In which case, it must be created manually with "docker volume create enterprise-feeds-db-volume"
+    external: false
+
+services:
+  # The primary API endpoint service
+  api:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    depends_on:
+      - nextlinux-db
+      - catalog
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-engine.yaml:/config/config.yaml:z
+    ports:
+      - "8228:8228"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=api
+      - NEXTLINUX_DB_HOST=nextlinux-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_AUTHZ_HANDLER=external
+      - NEXTLINUX_EXTERNAL_AUTHZ_ENDPOINT=http://rbac-authorizer:8228
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_LOG_LEVEL=INFO
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    command: ["nextlinux-enterprise-manager", "service", "start",  "apiext"]
+  # Catalog is the primary persistence and state manager of the system
+  catalog:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    depends_on:
+      - nextlinux-db
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-engine.yaml:/config/config.yaml:z
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    expose:
+      - 8228
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=catalog
+      - NEXTLINUX_DB_HOST=nextlinux-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_LOG_LEVEL=INFO
+      - NEXTLINUX_CATALOG_NOTIFICATION_INTERVAL_SEC=0
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    command: ["nextlinux-enterprise-manager", "service", "start",  "catalog"]
+  queue:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    depends_on:
+      - nextlinux-db
+      - catalog
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-engine.yaml:/config/config.yaml:z
+    expose:
+      - 8228
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=queue
+      - NEXTLINUX_DB_HOST=nextlinux-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_LOG_LEVEL=INFO
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    command: ["nextlinux-enterprise-manager", "service", "start",  "simplequeue"]
+  policy-engine:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    depends_on:
+      - nextlinux-db
+      - catalog
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-engine.yaml:/config/config.yaml:z
+    expose:
+      - 8228
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=policy-engine
+      - NEXTLINUX_DB_HOST=nextlinux-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_LOG_LEVEL=INFO
+      - NEXTLINUX_VULNERABILITIES_PROVIDER=grype
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # To use on-prem feed service with grype, uncomment NEXTLINUX_GRYPE_DB_URL. In addition, uncomment the enterprise-feeds-db and feeds services at the end of this file
+      #- NEXTLINUX_GRYPE_DB_URL=http://feeds:8228/v1/databases/grypedb
+      # To use on-prem feed service, uncomment the following NEXTLINUX_FEEDS_* environment variables. In addition, uncomment the enterprise-feeds-db and feeds services at the end of this file
+      #- NEXTLINUX_FEEDS_URL=http://feeds:8228/v1/feeds
+      #- NEXTLINUX_FEEDS_CLIENT_URL=null
+      #- NEXTLINUX_FEEDS_TOKEN_URL=null
+      # Uncomment the next variable in addition to enabling the on-prem feed service just above, to enable syncing of the MSRC data feeds for windows scanning support.
+      #- NEXTLINUX_FEEDS_MICROSOFT_ENABLED=true
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    command: ["nextlinux-enterprise-manager", "service", "start",  "policy_engine"]
+  analyzer:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    depends_on:
+      - nextlinux-db
+      - catalog
+    expose:
+      - 8228
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=analyzer
+      - NEXTLINUX_DB_HOST=nextlinux-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_LOG_LEVEL=INFO
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      - /analysis_scratch
+      #- ./config-engine.yaml:/config/config.yaml:z
+    command: ["nextlinux-enterprise-manager", "service", "start",  "analyzer"]
+  nextlinux-db:
+    image: registry1.dso.mil/ironbank/opensource/postgres/postgresql:13.6
+    volumes:
+      - nextlinux-enterprise-4.0.2-db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=mysecretpassword
+    expose:
+      - 5432
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+  rbac-authorizer:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-enterprise.yaml:/config/config.yaml:z
+    depends_on:
+      - nextlinux-db
+      - catalog
+    expose:
+      - 8089
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=rbac-authorizer
+      - NEXTLINUX_DB_HOST=nextlinux-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_LOG_LEVEL=INFO
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    command: ["nextlinux-enterprise-manager", "service", "start",  "rbac_authorizer"]
+  rbac-manager:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-enterprise.yaml:/config/config.yaml:z
+    depends_on:
+      - nextlinux-db
+      - catalog
+    ports:
+      - "8229:8228"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=rbac-manager
+      - NEXTLINUX_DB_HOST=nextlinux-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_AUTHZ_HANDLER=external
+      - NEXTLINUX_EXTERNAL_AUTHZ_ENDPOINT=http://rbac-authorizer:8228
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_LOG_LEVEL=INFO
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    command: ["nextlinux-enterprise-manager", "service", "start",  "rbac_manager"]
+  reports:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-enterprise.yaml:/config/config.yaml:z      
+    depends_on:
+      - nextlinux-db
+      - catalog
+    ports:
+      - "8558:8228"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=reports
+      - NEXTLINUX_DB_HOST=nextlinux-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_AUTHZ_HANDLER=external
+      - NEXTLINUX_EXTERNAL_AUTHZ_ENDPOINT=http://rbac-authorizer:8228
+      - NEXTLINUX_LOG_LEVEL=INFO
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    command: ["nextlinux-enterprise-manager", "service", "start",  "reports"]
+  reports_worker:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-enterprise.yaml:/config/config.yaml:z      
+    depends_on:
+      - nextlinux-db
+      - catalog
+    expose:
+      - 8228
+    logging:
+       driver: "json-file"
+       options:
+         max-size: 100m
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=reports_worker
+      - NEXTLINUX_DB_HOST=nextlinux-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_LOG_LEVEL=INFO
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    command: ["nextlinux-enterprise-manager", "service", "start",  "reports_worker"]
+  notifications:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-enterprise.yaml:/config/config.yaml:z      
+    depends_on:
+      - nextlinux-db
+      - catalog
+    ports:
+      - "8668:8228"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=notifications
+      - NEXTLINUX_DB_HOST=nextlinux-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_AUTHZ_HANDLER=external
+      - NEXTLINUX_EXTERNAL_AUTHZ_ENDPOINT=http://rbac-authorizer:8228
+      - NEXTLINUX_LOG_LEVEL=INFO
+      - NEXTLINUX_ENTERPRISE_UI_URL=http://localhost:3000
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    command: ["nextlinux-enterprise-manager", "service", "start",  "notifications"]
+  ui-redis:
+    image: "docker.io/library/redis:4"
+    expose:
+      - 6379
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli PING"]
+  ui:
+    image: registry1.dso.mil/ironbank/nextlinux/enterpriseui/enterpriseui:4.0.2
+    volumes:
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-ui.yaml:/config/config-ui.yaml:z
+    depends_on:
+      - api
+      - ui-redis
+      - nextlinux-db
+    ports:
+      - "3000:3000"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    environment:
+      - NEXTLINUX_ENGINE_URI=http://api:8228/v1
+      - NEXTLINUX_RBAC_URI=http://rbac-manager:8228/v1
+      - NEXTLINUX_REDIS_URI=redis://ui-redis:6379
+      - NEXTLINUX_APPDB_URI=postgres://postgres:mysecretpassword@nextlinux-db:5432/postgres
+      - NEXTLINUX_REPORTS_URI=http://reports:8228/v1
+      - NEXTLINUX_NOTIFICATIONS_URI=http://notifications:8228/v1
+      - NEXTLINUX_CLI_PASS=foobar
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+  # Uncomment this section to add an on-prem feed service to this deployment. This will incur first-time feed sync delay, but is included for completeness / review of enterprise service deployment options
+  enterprise-feeds-db:
+    image: "registry1.dso.mil/ironbank/opensource/postgres/postgresql:13.6"
+    volumes:
+      - enterprise-feeds-db-volume:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=mysecretpassword
+    expose:
+      - 5432
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+  feeds:
+    image: registry1.dso.mil/ironbank/nextlinux/enterprise/enterprise:4.0.2
+    volumes:
+      - feeds-workspace-volume:/workspace
+      - ./license.yaml:/license.yaml:ro
+      #- ./config-enterprise.yaml:/config/config.yaml:z
+    depends_on:
+      - enterprise-feeds-db
+    ports:
+      - "8448:8228"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: 100m
+    environment:
+      - NEXTLINUX_ENDPOINT_HOSTNAME=feeds
+      - NEXTLINUX_DB_HOST=enterprise-feeds-db
+      - NEXTLINUX_DB_PASSWORD=mysecretpassword
+      - NEXTLINUX_ENABLE_METRICS=false
+      - NEXTLINUX_LOG_LEVEL=DEBUG
+      - NEXTLINUX_ADMIN_PASSWORD=foobar
+      - NEXTLINUX_ENTERPRISE_FEEDS_EXTERNAL_URL=http://feeds:8228/v1
+      - NEXTLINUX_AUTH_PRIVKEY=null
+      - NEXTLINUX_AUTH_PUBKEY=null
+      - NEXTLINUX_AUTH_SECRET=null
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=null
+      - NEXTLINUX_POLICY_EVAL_CACHE_TTL_SECONDS=360
+      # Uncomment the following to enable Microsoft msrc driver.
+      - NEXTLINUX_ENTERPRISE_FEEDS_MSRC_DRIVER_ENABLED=true
+      # Uncomment NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN for github driver.
+      # Generate token with https://github.com/settings/tokens/new?scopes=user,public_repo,repo,repo_deployment,repo:status,read:repo_hook,read:org,read:public_key,read:gpg_key
+      # and assign the value to environment variable
+      - NEXTLINUX_ENTERPRISE_FEEDS_GITHUB_DRIVER_TOKEN=${NEXTLINUX_GITHUB_KEY}
+      # Uncomment both NEXTLINUX_OAUTH_ENABLED and NEXTLINUX_AUTH_SECRET to enable SSO feature of nextlinux-enterprise
+      #- NEXTLINUX_OAUTH_ENABLED=true
+      #- NEXTLINUX_AUTH_SECRET=supersharedsecret
+    command: ["nextlinux-enterprise-manager", "service", "start",  "feeds"]
+
+#  # Uncomment this section to add a prometheus instance to gather metrics. This is mostly for quickstart to demonstrate prometheus metrics exported
+#  prometheus:
+#    image: docker.io/prom/prometheus:latest
+#    depends_on:
+#      - api
+#    volumes:
+#      - ./nextlinux-prometheus.yml:/etc/prometheus/prometheus.yml:z
+#    logging:
+#      driver: "json-file"
+#      options:
+#        max-size: 100m
+#    ports:
+#      - "9090:9090"
+#
+#   Uncomment this section to run a swagger UI service, for inspecting and interacting with the nextlinux engine API via a browser (http://localhost:8080 by default, change if needed in both sections below)
+# swagger-ui-nginx:
+#   image: docker.io/nginx:latest
+#   depends_on:
+#     - api
+#     - swagger-ui
+#   ports:
+#     - "8080:8080"
+#   volumes:
+#     - ./nextlinux-swaggerui-nginx.conf:/etc/nginx/nginx.conf:z
+#  logging:
+#     driver: "json-file"
+#     options:
+#       max-size: 100m
+# swagger-ui:
+#   image: docker.io/swaggerapi/swagger-ui
+#   environment:
+#     - URL=http://localhost:8080/v1/swagger.json
+#   logging:
+#     driver: "json-file"
+#     options:
+#       max-size: 100m

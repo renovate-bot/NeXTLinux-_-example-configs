@@ -1,0 +1,5 @@
+---
+# URL to the Nextlinux API endpoint. This playbook appends /v1 to any URL added below. Please do NOT set that as part of the URL. 
+nextlinux_api_url: ""
+# DockerID for configuring private registries.
+docker_user: ""

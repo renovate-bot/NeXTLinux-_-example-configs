@@ -1,0 +1,6 @@
+nextlinuxGlobal:
+  enableMetrics: true
+  metricsAuthDisabled: true
+
+nextlinuxEnterpriseGlobal:
+  enabled: true
